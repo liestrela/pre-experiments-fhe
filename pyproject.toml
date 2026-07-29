@@ -1,0 +1,22 @@
+[project]
+name = "mlc-fhe"
+version = "0.1.0"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "concrete-ml",
+    "concrete-python",
+]
+
+[[tool.uv.index]]
+name = "zama-gpu"
+url = "https://pypi.zama.ai/gpu"
+explicit = true
+
+[tool.uv.sources]
+concrete-python = { index = "zama-gpu" }
+
+[tool.uv]
+allow-insecure-host = ["pypi.zama.ai"]

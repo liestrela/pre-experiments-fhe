@@ -35,26 +35,30 @@ def _scores(y_true, y_pred):
     }
 
 
-def _predict_fhe(estimator, X, fhe):
+def _predict_fhe(estimator, X, fhe, verbose=True):
     if fhe == "execute":
         n = len(X)
         y = np.empty(n, dtype=np.int32)
         for j in range(n):
             y[j] = estimator.predict(X[j:j + 1], fhe="execute")[0]
-            print(f"  {j + 1}/{n} ({(j + 1) / n * 100:.0f}%)", end="\r", flush=True)
-        print()
+            if verbose:
+                print(f"  {j + 1}/{n} ({(j + 1) / n * 100:.0f}%)", end="\r", flush=True)
+        if verbose:
+            print()
         return y
     return estimator.predict(X, fhe=fhe)
 
 
-def _predict_proba_fhe(estimator, X, fhe):
+def _predict_proba_fhe(estimator, X, fhe, verbose=True):
     if fhe == "execute":
         n = len(X)
         probas = []
         for j in range(n):
             probas.append(estimator.predict_proba(X[j:j + 1], fhe="execute")[0])
-            print(f"  {j + 1}/{n} ({(j + 1) / n * 100:.0f}%)", end="\r", flush=True)
-        print()
+            if verbose:
+                print(f"  {j + 1}/{n} ({(j + 1) / n * 100:.0f}%)", end="\r", flush=True)
+        if verbose:
+            print()
         return np.array(probas)
     return estimator.predict_proba(X, fhe=fhe)
 
@@ -62,7 +66,7 @@ def _predict_proba_fhe(estimator, X, fhe):
 class BinaryRelevanceFHE:
     def __init__(self, base_estimator_cls=None, base_estimator_kwargs=None, device="cuda", fhe="execute"):
         self.base_estimator_cls = base_estimator_cls if base_estimator_cls is not None else ConcreteLogisticRegression
-        self.base_estimator_kwargs = base_estimator_kwargs if base_estimator_kwargs is not None else {}
+        self.base_estimator_kwargs = base_estimator_kwargs if base_estimator_kwargs is not None else {"max_iter": 1000}
         self.device = device
         self.fhe = fhe
 
@@ -84,26 +88,26 @@ class BinaryRelevanceFHE:
             estimator.compile(X, device=self.device)
         return self
 
-    def predict(self, X, fhe=None):
+    def predict(self, X, fhe=None, verbose=True):
         fhe = fhe if fhe is not None else self.fhe
         X = self.scaler_.transform(X)
-        columns = [_predict_fhe(estimator, X, fhe) for estimator in self.estimators_]
+        columns = [_predict_fhe(estimator, X, fhe, verbose=verbose) for estimator in self.estimators_]
         return np.column_stack(columns)
 
-    def predict_proba(self, X, fhe=None):
+    def predict_proba(self, X, fhe=None, verbose=True):
         fhe = fhe if fhe is not None else self.fhe
         X = self.scaler_.transform(X)
-        columns = [_predict_proba_fhe(estimator, X, fhe)[:, 1] for estimator in self.estimators_]
+        columns = [_predict_proba_fhe(estimator, X, fhe, verbose=verbose)[:, 1] for estimator in self.estimators_]
         return np.column_stack(columns)
 
-    def score(self, X, y, fhe=None):
-        return _scores(y, self.predict(X, fhe=fhe))
+    def score(self, X, y, fhe=None, verbose=True):
+        return _scores(y, self.predict(X, fhe=fhe, verbose=verbose))
 
 
 class LabelPowersetClassifierFHE:
     def __init__(self, base_estimator_cls=None, base_estimator_kwargs=None, device="cuda", fhe="execute"):
         self.base_estimator_cls = base_estimator_cls if base_estimator_cls is not None else ConcreteLogisticRegression
-        self.base_estimator_kwargs = base_estimator_kwargs if base_estimator_kwargs is not None else {}
+        self.base_estimator_kwargs = base_estimator_kwargs if base_estimator_kwargs is not None else {"max_iter": 1000}
         self.device = device
         self.fhe = fhe
 
@@ -122,16 +126,16 @@ class LabelPowersetClassifierFHE:
         self.estimator_.compile(X, device=self.device)
         return self
 
-    def predict(self, X, fhe=None):
+    def predict(self, X, fhe=None, verbose=True):
         fhe = fhe if fhe is not None else self.fhe
         X = self.scaler_.transform(X)
-        y_encoded = _predict_fhe(self.estimator_, X, fhe)
+        y_encoded = _predict_fhe(self.estimator_, X, fhe, verbose=verbose)
         return self.lp_.inverse_transform(y_encoded)
 
-    def predict_proba(self, X, fhe=None):
+    def predict_proba(self, X, fhe=None, verbose=True):
         fhe = fhe if fhe is not None else self.fhe
         X = self.scaler_.transform(X)
-        class_proba = _predict_proba_fhe(self.estimator_, X, fhe)
+        class_proba = _predict_proba_fhe(self.estimator_, X, fhe, verbose=verbose)
         classes = self.estimator_.classes_
         label_proba = np.zeros((X.shape[0], self.lp_.n_labels))
         for col, class_label in enumerate(classes):
@@ -141,5 +145,5 @@ class LabelPowersetClassifierFHE:
                     label_proba[:, label] += class_proba[:, col]
         return label_proba
 
-    def score(self, X, y, fhe=None):
-        return _scores(y, self.predict(X, fhe=fhe))
+    def score(self, X, y, fhe=None, verbose=True):
+        return _scores(y, self.predict(X, fhe=fhe, verbose=verbose))

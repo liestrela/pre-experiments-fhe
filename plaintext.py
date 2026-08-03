@@ -38,7 +38,7 @@ def _scores(y_true, y_pred):
 
 class BinaryRelevance:
     def __init__(self, base_estimator=None):
-        self.base_estimator = base_estimator if base_estimator is not None else LogisticRegression()
+        self.base_estimator = base_estimator if base_estimator is not None else LogisticRegression(max_iter=1000)
 
     def fit(self, X, y):
         assert y.ndim == 2, "y must be a 2D array of shape (n_samples, n_labels)"
@@ -68,7 +68,7 @@ class BinaryRelevance:
 
 class LabelPowersetClassifier:
     def __init__(self, base_estimator=None):
-        self.base_estimator = base_estimator if base_estimator is not None else LogisticRegression()
+        self.base_estimator = base_estimator if base_estimator is not None else LogisticRegression(max_iter=1000)
 
     def fit(self, X, y):
         assert y.ndim == 2, "y must be a 2D array of shape (n_samples, n_labels)"
